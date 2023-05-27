@@ -130,7 +130,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         create_app_icon(&mut stream, settings)?;
     }
     package.insert_rows(
-        msi::Insert::into("Icon").row(vec![msi::Value::Str(icon_name), msi::Value::from("Name")]),
+        msi::Insert::into("Icon").row(vec![msi::Value::Str(icon_name), msi::Value::from("Name")])
+    )?;
+    
+    // Create dialog icon
+    package.create_table(
+        "Binary",
+        vec![
+            msi::Column::build("Name").primary_key().id_string(72),
+            msi::Column::build("Data").binary(),
+        ],
+    )?;
+    {
+        let mut stream = package.write_stream("Binary.dialog.png")?;
+        stream.write(include_bytes!("res/msi_dialog.png"))?;
+        drop(stream);
+        stream = package.write_stream("Binary.banner.png")?;
+        stream.write(include_bytes!("res/msi_banner.png"))?;
+    }
+    package.insert_rows(
+        msi::Insert::into("Binary").row(vec![msi::Value::from("dialog.png"), msi::Value::from("Name")])
+        .row(vec![msi::Value::from("banner.png"), msi::Value::from("Name")])
     )?;
 
     package.flush()?;
@@ -897,27 +917,26 @@ fn create_control_table(package: &mut Package, _cabinets: &[CabinetInfo]) -> cra
         ],
     )?;
     let mut rows = Vec::new();
-    let actions: [(&str, &str, &str, i32, i32, i32, i32, i32, &str, &str, &str, &str); 38] = [
+    let actions: [(&str, &str, &str, i32, i32, i32, i32, i32, &str, &str, &str, &str); 43] = [
         ("WelcomeDialog", "WelcomeDescription", "Text", 135, 70, 220, 50, 196611, "", "{\\DefaultFont}This will install [ProductName] on your computer. Click Install to continue or Cancel to exit the installer.", "", ""),
         ("WelcomeDialog", "WelcomeTitle", "Text", 135, 20, 220, 60, 196611, "", "{\\TitleFont}Welcome to the [ProductName] setup wizard", "", ""),
         ("WelcomeDialog", "WelcomeCancel", "PushButton", 304, 243, 56, 17, 3, "", "Cancel", "", ""),
-        //("WelcomeDialog", "WelcomeBitmap", "Bitmap", 0, 0, 370, 234, 1, "", "[DialogBitmap]", "WelcomeBack", ""),
+        ("WelcomeDialog", "WelcomeBitmap", "Bitmap", 0, 0, 100, 234, 0x100001, "", "dialog.png", "WelcomeBack", ""),
         ("WelcomeDialog", "WelcomeBack", "PushButton", 180, 243, 56, 17, 1, "", "Back", "WelcomeInstall", ""),
         ("WelcomeDialog", "WelcomeBottomLine", "Line", 0, 234, 374, 0, 1, "", "", "", ""),
         ("WelcomeDialog", "WelcomeInstall", "PushButton", 236, 243, 56, 17, 3, "", "Install", "WelcomeCancel", ""),
         ("RemoveDialog", "RemoveDescription", "Text", 135, 70, 220, 50, 196611, "", "This will remove [ProductName] from your computer. Click Remove to continue or Cancel to exit the uninstaller.", "", ""),
         ("RemoveDialog", "RemoveTitle", "Text", 135, 20, 220, 60, 196611, "", "{\\TitleFont}Uninstall [ProductName]", "", ""),
         ("RemoveDialog", "RemoveCancel", "PushButton", 304, 243, 56, 17, 3, "", "Cancel", "", ""),
-        //("RemoveDialog", "RemoveBitmap", "Bitmap", 0, 0, 370, 234, 1, "", "[DialogBitmap]", "RemoveBack", ""),
+        ("RemoveDialog", "RemoveBitmap", "Bitmap", 0, 0, 100, 234, 0x100001, "", "dialog.png", "RemoveBack", ""),
         ("RemoveDialog", "RemoveBack", "PushButton", 180, 243, 56, 17, 1, "", "Back", "RemoveRemove", ""),
         ("RemoveDialog", "RemoveBottomLine", "Line", 0, 234, 374, 0, 1, "", "", "", ""),
         ("RemoveDialog", "RemoveRemove", "PushButton", 236, 243, 56, 17, 3, "", "Remove", "RemoveCancel", ""),
-        //("CancelDialog", "CancelIcon", "Icon", 15, 15, 24, 24, 5242881, "", "[InfoIcon]", "", "Information icon|"),
         ("CancelDialog", "CancelNo", "PushButton", 132, 57, 56, 17, 3, "", "Continue", "CancelYes", ""),
         ("CancelDialog", "CancelText", "Text", 48, 15, 194, 30, 3, "", "Do you want to abort [ProductName] [Text_action]?", "", ""),
         ("CancelDialog", "CancelYes", "PushButton", 72, 57, 56, 17, 3, "", "Abort", "CancelNo", ""),
         ("ProgressDialog", "ProgressTitle", "Text", 20, 15, 200, 15, 196611, "", "{\\BoldFont}[Text_Doing] [ProductName]", "", ""),
-        //("ProgressDialog", "ProgressBannerBitmap", "Bitmap", 0, 0, 374, 44, 1, "", "[BannerBitmap]", "ProgressBack", ""),
+        ("ProgressDialog", "ProgressBannerBitmap", "Bitmap", 330, 0, 44, 44, 0x100001, "", "banner.png", "ProgressBack", ""),
         ("ProgressDialog", "ProgressCancel", "PushButton", 304, 243, 56, 17, 3, "", "Cancel", "", ""),
         ("ProgressDialog", "ProgressText", "Text", 35, 65, 300, 25, 3, "", "Please wait while [ProductName] is [Text_done]. This may take several minutes.", "", ""),
         ("ProgressDialog", "ProgressActionText", "Text", 70, 105, 265, 15, 3, "", "", "", ""),
@@ -930,13 +949,13 @@ fn create_control_table(package: &mut Package, _cabinets: &[CabinetInfo]) -> cra
         ("ExitDialog", "ExitDescription", "Text", 135, 70, 220, 20, 196611, "", "Click the Finish button to exit the [Text_agent].", "", ""),
         ("ExitDialog", "ExitTitle", "Text", 135, 20, 220, 60, 196611, "", "{\\TitleFont}[ProductName] [Text_action] complete", "", ""),
         ("ExitDialog", "ExitCancel", "PushButton", 304, 243, 56, 17, 1, "", "Cancel", "", ""),
-        //("ExitDialog", "ExitBitmap", "Bitmap", 0, 0, 370, 234, 1, "", "[DialogBitmap]", "ExitBack", ""),
+        ("ExitDialog", "ExitBitmap", "Bitmap", 0, 0, 100, 234, 0x100001, "", "dialog.png", "ExitBack", ""),
         ("ExitDialog", "ExitBack", "PushButton", 180, 243, 56, 17, 1, "", "Back", "ExitFinish", ""),
         ("ExitDialog", "ExitBottomLine", "Line", 0, 234, 374, 0, 1, "", "", "", ""),
         ("ExitDialog", "ExitFinish", "PushButton", 236, 243, 56, 17, 3, "", "Finish", "ExitCancel", ""),
         ("FatalErrorDialog", "FatalTitle", "Text", 135, 20, 220, 60, 196611, "", "{\\TitleFont}[ProductName] [Text_agent] ended prematurely", "", ""),
         ("FatalErrorDialog", "FatalCancel", "PushButton", 304, 243, 56, 17, 1, "", "Cancel", "", ""),
-        //("FatalErrorDialog", "FatalBitmap", "Bitmap", 0, 0, 370, 234, 1, "", "[DialogBitmap]", "FatalBack", ""),
+        ("FatalErrorDialog", "FatalBitmap", "Bitmap", 0, 0, 100, 234, 0x100001, "", "dialog.png", "FatalBack", ""),
         ("FatalErrorDialog", "FatalBack", "PushButton", 180, 243, 56, 17, 1, "", "Back", "FatalFinish", ""),
         ("FatalErrorDialog", "FatalBottomLine", "Line", 0, 234, 374, 0, 1, "", "", "", ""),
         ("FatalErrorDialog", "FatalFinish", "PushButton", 236, 243, 56, 17, 3, "", "Finish", "FatalCancel", ""),
